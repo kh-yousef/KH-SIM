@@ -27,30 +27,49 @@ def annual_influx_of_candidates(mu=15, sigma=5):
 def is_eligible_for_office(politician, office, current_year):
     age_requirements = {'Quaestor': 30, 'Aedile': 36, 'Praetor': 39, 'Consul': 42}
     
-    print("Politician's age:", politician.age)
-    print("Required age for", office, ":", age_requirements[office])
+    print(f"\nEvaluating: {politician.office} (Age: {politician.age}, Years in Office: {politician.years_in_office}, Last Consul Term: {politician.last_consul_term}) for {office}")
     
+    # Check age requirement
     if politician.age < age_requirements[office]:
-        print("Politician is not old enough for", office)
+        print(f"  Not eligible for {office}: Insufficient age ({politician.age} < {age_requirements[office]})")
         return False
-    
+
+    # Eligibility based on office and experience
     if office == 'Quaestor':
-        print("Eligible for Quaestor")
+        print("  Eligible for Quaestor: Direct entry allowed.")
         return True
     elif office == 'Aedile' and politician.office == 'Quaestor' and politician.years_in_office >= 2:
-        print("Eligible for Aedile")
+        print("  Eligible for Aedile: Meets Quaestor experience.")
         return True
     elif office == 'Praetor' and politician.office == 'Aedile' and politician.years_in_office >= 2:
-        print("Eligible for Praetor")
+        print("  Eligible for Praetor: Meets Aedile experience.")
         return True
     elif office == 'Consul':
         if politician.office == 'Praetor' and politician.years_in_office >= 2:
             if not politician.last_consul_term or (current_year - politician.last_consul_term) >= 10:
-                print("Eligible for Consul")
+                print("  Eligible for Consul: Meets Praetor experience and re-election interval.")
                 return True
-    
-    print("Not eligible for", office)
+            else:
+                print("  Not eligible for Consul: Re-election interval not met.")
+        else:
+            print("  Not eligible for Consul: Insufficient Praetor experience.")
+
     return False
+
+def test_promotion_paths():
+    # Adjusting Quaestor's age to meet the Aedile requirement
+    quaestor = Politician(age=36, office='Quaestor', years_in_office=2)
+    aedile = Politician(age=40, office='Aedile', years_in_office=2)
+    praetor = Politician(age=45, office='Praetor', years_in_office=2, last_consul_term=None)
+    
+    # Testing eligibility for the next office
+    assert is_eligible_for_office(quaestor, 'Aedile', 1), "Quaestor should be eligible for Aedile"
+    assert is_eligible_for_office(aedile, 'Praetor', 1), "Aedile should be eligible for Praetor"
+    assert is_eligible_for_office(praetor, 'Consul', 1), "Praetor should be eligible for Consul"
+
+    print("All test cases passed.")
+
+
 
 def initialize_political_landscape():
     landscape = {
@@ -99,23 +118,28 @@ def conduct_elections(landscape, new_candidates, current_year):
         if office == 'Quaestor':
             candidates = new_candidates + [p for p in landscape['Quaestor'] if is_eligible_for_office(p, office, current_year)]
         else:
-            candidates = [p for p in landscape[office] if is_eligible_for_office(p, office, current_year)]
-        
-        print("Candidates for", office, ":", len(candidates))
+            candidates = []
+            for lower_office, politicians in landscape.items():
+                if lower_office != office:  # Consider candidates from all lower offices
+                    candidates.extend([p for p in politicians if is_eligible_for_office(p, office, current_year)])
         
         random.shuffle(candidates)
-        elected_count = 0
         while len(landscape[office]) < office_limits[office] and candidates:
             candidate = candidates.pop()
             if is_eligible_for_office(candidate, office, current_year):
+                if candidate.office != office:  # Update office and years if it's a promotion
+                    candidate.office = office
+                    candidate.years_in_office = 0  # Reset years in office upon promotion
                 landscape[office].append(candidate)
                 if office == 'Consul':
                     candidate.last_consul_term = current_year
-                candidate.office = office
-                candidate.years_in_office = 0
-                elected_count += 1
-        print("Elected", elected_count, "for", office)
+
+    # Resetting politicians to their current office after elections
+    for office in landscape.keys():
+        landscape[office] = [p for p in landscape[office] if p.office == office]
+
     return landscape
+
 
 def update_PSI(landscape, PSI):
     for office in office_limits:
