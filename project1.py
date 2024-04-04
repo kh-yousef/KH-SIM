@@ -1,6 +1,7 @@
 import numpy as np
 import random
 from scipy.stats import truncnorm
+import matplotlib.pyplot as plt
 
 class Politician: #politician class
     def __init__(self, age, office=None, years_in_office=0, last_consul_term=None):
@@ -173,11 +174,27 @@ def run_simulation():
         landscape, PSI = simulate_year(landscape, PSI, current_year)
     # Calculate the average fill rates
     avg_fill_rates = {office: len(landscape[office]) / office_limits[office] for office in office_limits}
-    return PSI, avg_fill_rates
+    return PSI, avg_fill_rates, landscape
 
-PSI_final, avg_fill_rates = run_simulation()
+def plot_age_distributions(landscape):
+    fig, axs = plt.subplots(2, 2, figsize=(10, 7))  #figure size as needed
+    axs = axs.ravel()  # Flatten the array if necessary
+
+    for i, office in enumerate(['Quaestor', 'Aedile', 'Praetor', 'Consul']):
+        ages = [politician.age for politician in landscape[office]]
+        axs[i].hist(ages, bins=range(25, 81, 5), alpha=0.7)
+        axs[i].set_title(f'Age Distribution in {office}')
+        axs[i].set_xlabel('Age')
+        axs[i].set_ylabel('Number of Politicians')
+
+    plt.tight_layout()
+    plt.show()
+
+PSI_final, avg_fill_rates, landscape = run_simulation()
 print("Final PSI:", PSI_final)
 print("Average Annual Fill Rates:")
 for office, rate in avg_fill_rates.items():
     print(f"{office}: {rate:.2f}")
 
+# Plot the age distributions
+plot_age_distributions(landscape)
